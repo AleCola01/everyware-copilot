@@ -69,6 +69,7 @@ def find_saved_indexes() -> List[vector_db_index]:
     json_collections = utils.func.list_directories(const.INDEX_ROOT_PATH)    
     chroma_collections = chroma_db.list_collections()
     milvus_collections = utils.func.list_files(const.INDEX_ROOT_PATH, ".mvdb")
+    print(milvus_collections)
     result = []
     for coll in json_collections:
         result.append(vector_db_index(engine= 0, name= coll))
@@ -96,7 +97,7 @@ def load_index(index: vector_db_index):
         )
         return index
     if(index.engine == 2):
-        vector_store = MilvusVectorStore(os.path.join(const.INDEX_ROOT_PATH, index.name+".mvbd"))
+        vector_store = MilvusVectorStore(os.path.join(const.INDEX_ROOT_PATH, index.name+".mvdb"), dim=1024)
         index = VectorStoreIndex.from_vector_store(
             vector_store
         )
@@ -108,8 +109,8 @@ def format_model_name(model):
     return model[0]
 
 def reload_index():    
-    logging.info(f"> selected_index = {st.session_state.selected_index.name}")
-    logging.info(f"> old_selected_index = {st.session_state.old_selected_index.name}")
+    logging.info(f"> selected_index = {st.session_state.selected_index}")
+    logging.info(f"> old_selected_index = {st.session_state.old_selected_index}")
     if st.session_state.old_selected_index != st.session_state.selected_index:
         st.session_state.old_selected_index = st.session_state.selected_index
         logging.info(f"> replaced old_selected_index = {st.session_state.old_selected_index}")
@@ -181,17 +182,11 @@ with st.sidebar:
 
     use_index = st.toggle("Use RAG", value=False)
     if use_index:
-        # col1, col2 = st.columns([5,1], vertical_alignment="bottom") ### https://github.com/streamlit/streamlit/issues/3052
-        col1, col2 = st.columns([5,1])
         saved_index_list = find_saved_indexes()
-        with col1:
-            index = next((i for i, item in enumerate(saved_index_list) if item.name.startswith('_')), None)
-            st.session_state.selected_index = st.selectbox("Index", saved_index_list, index, format_func=index_name_format)
-            reload_index()
-            logging.info(f"> selected_index = {st.session_state.selected_index}")
-        with col2:
-            st.markdown('')
-            # st.link_button('➕', url='pages/build_index.py')
+        index = next((i for i, item in enumerate(saved_index_list) if item.name.startswith('_')), None)
+        st.session_state.selected_index = st.selectbox("Index", saved_index_list, index, format_func=index_name_format)
+        reload_index()
+        logging.info(f"> selected_index = {st.session_state.selected_index}")
         
         st.page_link("pages/build_index.py", label=" Build a new index", icon="➕")
 

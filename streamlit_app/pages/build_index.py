@@ -46,7 +46,7 @@ def on_indexname_change():
     name = st.session_state.my_indexname
     vector_engine = st.session_state.vector_db
     name = utils.func.make_valid_directory_name(name)
-    if os.path.exists(os.path.join(const.INDEX_ROOT_PATH, name) and vector_engine != 1):
+    if os.path.exists(os.path.join(const.INDEX_ROOT_PATH, name)) and (vector_engine != 1):
         with container_name:
             st.error('The title name is not valid', icon="🚨")
     else:
@@ -129,7 +129,7 @@ def create_index(docs):
         return index
     if st.session_state.vector_db == 2:
         logging.info("### Creating Milvus Index...")
-        vector_store = MilvusVectorStore(st.session_state.index_path_to_be_created+".mvdb")
+        vector_store = MilvusVectorStore(st.session_state.index_path_to_be_created+".mvdb", dim=1024)
         storage_context = StorageContext.from_defaults(vector_store= vector_store)
         index = VectorStoreIndex.from_documents(
             docs, 
@@ -241,8 +241,7 @@ if "vector_db" not in st.session_state.keys():
 # Side bar
 with st.sidebar:
     st.title("Building Index")
-    st.image(ETH_LOGO, use_column_width=True)    
-    # st.title(":airplane: Eurotech Copilot")
+    st.logo(ETH_LOGO)
     st.image(ECP_LOGO, width=300)    
     st.info('Build your own custom Index based on your local/online documents.')
 

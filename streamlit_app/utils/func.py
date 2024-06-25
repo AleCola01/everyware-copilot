@@ -1,9 +1,11 @@
 import os
 import re
 from urllib.parse import urlparse
+from pathlib import Path
 
 import logging
 import sys
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 # logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -29,8 +31,8 @@ def list_files(directory, filter):
         # Filter out the files
         files = []
         for file in entries:
-            if os.path.isfile(file) and file.endswith(filter):                
-                files.append(os.path.basename(file)[0])
+            if os.path.isfile(os.path.join(directory, file)) and file.endswith(filter):
+                files.append(Path(os.path.join(directory, file)).stem)
 
         return files
     except Exception as e:
