@@ -11,6 +11,32 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 ### Below for app.py
 
+def list_files(directory, filter):
+    """
+    List all files under the given directory.
+
+    Parameters:
+    directory (str): The path to the directory.
+    filter (str): File suffix used to filter results.
+
+    Returns:
+    list: A list of file names under the given directory.
+    """
+    try:
+        # Get a list of all entries in the directory
+        entries = os.listdir(directory)
+
+        # Filter out the files
+        files = []
+        for file in entries:
+            if os.path.isfile(file) and file.endswith(filter):                
+                files.append(os.path.basename(file)[0])
+
+        return files
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+
 def list_directories(directory):
     """
     List all directories under the given directory.
@@ -33,21 +59,35 @@ def list_directories(directory):
         print(f"An error occurred: {e}")
         return []
 
+class vector_db_index:
+    """
+    Structure used to store index names for different Vector stores.
+
+    Members:    
+    engine (int): Vector Store engine
+    0: JSON
+    1: ChromaDB
+    2: Milvus
+
+    name (str): index or collection name
+    """
+    def __init__(self, engine=0, name=None):
+        self.engine = engine
+        self.name = name
+    
+    def __eq__(self, other):
+        if isinstance(other, vector_db_index):
+            return self.engine == other.engine and self.name == other.name
+        return NotImplemented
 
 ### Below for build_index.py
 
-def make_valid_directory_name(name, vector_engine):
+def make_valid_directory_name(name):
     """
     Sanitize a given name to be a valid Linux directory name.
 
     Parameters:
     name (str): The name to be sanitized.
-
-    Parameters:
-    vector_engine (int): Vector Engine used for the index.
-    0 - Simple JSON
-    1 - ChromaDB
-    2 - Milvus
 
     Returns:
     str: A valid Linux directory name.
@@ -72,7 +112,7 @@ def make_valid_directory_name(name, vector_engine):
     if sanitized_name.startswith('-'):
         sanitized_name = '_' + sanitized_name[1:]
     
-    return str(vector_engine)+"_"+sanitized_name
+    return sanitized_name
 
 def is_valid_url(url):
     """

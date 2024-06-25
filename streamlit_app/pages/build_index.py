@@ -5,12 +5,7 @@ import pandas as pd
 import chromadb
 
 from llama_index.core import VectorStoreIndex, Settings, SimpleDirectoryReader
-from llama_index.llms.ollama import Ollama
-from llama_index.core.memory import ChatMemoryBuffer
-#from llama_index.embeddings.ollama import OllamaEmbedding
-#from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.core import SummaryIndex
 from llama_index.readers.web import SimpleWebPageReader
 from llama_index.readers.file import PyMuPDFReader
 from llama_index.readers.web import WholeSiteReader
@@ -20,6 +15,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import StorageContext
 
 from PIL import Image
@@ -44,13 +40,13 @@ def on_settings_change():
 
 def on_local_model_change():
     Settings.embed_model = HuggingFaceEmbedding(model_name="WhereIsAI/UAE-Large-V1", trust_remote_code=True)
-    logging.info(f" --- Settings.embed_model=OllamaEmbedding(model_name={st.session_state.my_local_model}) ---")
+    logging.info(f" --- Settings.embed_model=HuggingFaceEmbedding(model_name=WhereIsAI/UAE-Large-V1) ---")
 
 def on_indexname_change():
     name = st.session_state.my_indexname
     vector_engine = st.session_state.vector_db
-    name = utils.func.make_valid_directory_name(name, vector_engine)
-    if os.path.exists(os.path.join(const.INDEX_ROOT_PATH, name)):
+    name = utils.func.make_valid_directory_name(name)
+    if os.path.exists(os.path.join(const.INDEX_ROOT_PATH, name) and vector_engine != 1):
         with container_name:
             st.error('The title name is not valid', icon="🚨")
     else:
@@ -62,7 +58,7 @@ def on_indexname_change():
             if vector_engine == 1:
                 st.markdown(f"Collection `{st.session_state.index_name}` will be created inside ChromaDB")
             if vector_engine == 2:
-                st.markdown(f"Collection `{st.session_state.index_name}` will be created inside Milvus")
+                st.markdown(f"`{st.session_state.index_path_to_be_created}.mvdb` will be created")
 
 def on_docspath_change():
     logging.info("### on_docspath_change")
@@ -132,8 +128,14 @@ def create_index(docs):
         )
         return index
     if st.session_state.vector_db == 2:
-        # TODO
-        return None
+        logging.info("### Creating Milvus Index...")
+        vector_store = MilvusVectorStore(st.session_state.index_path_to_be_created+".mvdb")
+        storage_context = StorageContext.from_defaults(vector_store= vector_store)
+        index = VectorStoreIndex.from_documents(
+            docs, 
+            storage_context=storage_context
+        )
+        return index
 
     logging.info("### Creating Simple JSON Index...")
     return VectorStoreIndex.from_documents(docs)
@@ -144,7 +146,8 @@ def persist_index(index):
         # should store automatically
         return
     if st.session_state.vector_db == 2:
-        # TODO
+        # Milvus
+        # should store automatically
         return
     
     # JSON
@@ -152,7 +155,7 @@ def persist_index(index):
 
 
 # App title
-st.set_page_config(page_title="Eurotech Copilot - Build Index", menu_items=None)
+st.set_page_config(page_title="everyware copilot - Build Index", menu_items=None)
 Settings.embed_model = HuggingFaceEmbedding(model_name="WhereIsAI/UAE-Large-V1", trust_remote_code=True)
 
 ### Building Index with Embedding Model
@@ -300,7 +303,7 @@ st.warning("Check the model and its configurations on the sidebar (⬅️) and t
 container_settings = st.container()
 
 check_if_ready_to_index()
-#logging.info(f"Setting Embedding model... {Settings.embed_model}")
+logging.info(f"Setting Embedding model... {Settings.embed_model}")
 
 st.button("Build Index", on_click=index_data, key='my_button', disabled=st.session_state.get("index_button_disabled", True))
 container_status = st.container()

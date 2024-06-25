@@ -1,40 +1,42 @@
+import os
 import ollama
 # import openai
 import streamlit as st
 import docker
 import chromadb
 
-from llama_index.core import VectorStoreIndex, Settings, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core import load_index_from_storage, StorageContext
-from llama_index.core.storage.docstore import SimpleDocumentStore
-from llama_index.core.vector_stores import SimpleVectorStore
-from llama_index.core.storage.index_store import SimpleIndexStore
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.nvidia import NVIDIA
-from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.llms import ChatMessage, MessageRole
-# from llama_index.embeddings.ollama import OllamaEmbedding
-#from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import StorageContext
+from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from PIL import Image
+from typing import List
 import time
 
 import logging
 import sys
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-# logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-import utils.func 
+import utils.func
+from utils.func import vector_db_index 
 import utils.constants as const
 
 chroma_db = chromadb.PersistentClient(path="./chromadb")
+
+# As we cannot retrieve individual collections from Milvus, we have to use a
+# new Milvus DB for each individual index
+# milvus_db = MilvusClient("./milvus_db.db")
+
 # App title
-st.set_page_config(page_title="Eurotech Copilot", menu_items=None)
+st.set_page_config(page_title="everyware copilot", menu_items=None)
 
 AVATAR_AI   = Image.open('./images/ecp_agent.png')
 AVATAR_USER = Image.open('./images/ecp_user.png')
@@ -42,7 +44,7 @@ ETH_LOGO = Image.open('./images/logo.png')
 ECP_LOGO = Image.open('./images/ecp_logo.png')
 
 SYSTEM_PROMPT=(
-    """You are an expert Q&A system, answering questions on Eurotech products.
+"""You are an expert Q&A assistant, working as an employee in Eurotech, answering questions on Eurotech products.
 Never offend or attack or use bad words against Eurotech.
 Always answer the query using the provided context from the Eurotech documentation and not prior knowledge.
 Some rules to follow:
@@ -53,7 +55,7 @@ Some rules to follow:
 )
 
 CONTEXT_PROMPT=(
-    """Here are the relevant documents for the context:
+"""Here are the relevant documents for the context:
 ---------------------
 {context_str}
 ---------------------
@@ -63,37 +65,42 @@ DO NOT start the response with the statement 'According to the provided document
 """
 )
 
-def find_saved_indexes():
+def find_saved_indexes() -> List[vector_db_index]:
     json_collections = utils.func.list_directories(const.INDEX_ROOT_PATH)    
     chroma_collections = chroma_db.list_collections()
+    milvus_collections = utils.func.list_files(const.INDEX_ROOT_PATH, ".mvdb")
     result = []
     for coll in json_collections:
-        result.append(coll)
+        result.append(vector_db_index(engine= 0, name= coll))
     for coll in chroma_collections:        
-        result.append(coll.name)
+        result.append(vector_db_index(engine= 1, name= coll.name))
+    for coll in milvus_collections:
+        result.append(vector_db_index(engine= 2, name= coll))
     return result
 
-def load_index(index_name):
+def load_index(index: vector_db_index):
     Settings.embed_model = HuggingFaceEmbedding(model_name="WhereIsAI/UAE-Large-V1", 
                                             trust_remote_code=True) #TODO
-    if(index_name.startswith('0')):
+    if(index.engine == 0):
         # JSON
-        dir = f"{const.INDEX_ROOT_PATH}/{index_name}"
+        dir = f"{const.INDEX_ROOT_PATH}/{index.name}"
         storage_context = StorageContext.from_defaults(persist_dir=dir)
         index = load_index_from_storage(storage_context)
         return index
-    if(index_name.startswith('1')):
+    if(index.engine == 1):
         # ChromaDB
-        chroma_collection = chroma_db.get_or_create_collection(index_name)
+        chroma_collection = chroma_db.get_or_create_collection(index.name)
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         index = VectorStoreIndex.from_vector_store(
             vector_store
         )
         return index
-    if(index_name.startswith('2')):
-        # Milvus
-        # TODO
-        return None
+    if(index.engine == 2):
+        vector_store = MilvusVectorStore(os.path.join(const.INDEX_ROOT_PATH, index.name+".mvbd"))
+        index = VectorStoreIndex.from_vector_store(
+            vector_store
+        )
+        return index
     return None
 
 def format_model_name(model):
@@ -101,15 +108,15 @@ def format_model_name(model):
     return model[0]
 
 def reload_index():    
-    logging.info(f"> index_name = {st.session_state.index_name}")
-    logging.info(f"> old_index_name = {st.session_state.old_index_name}")
-    if st.session_state.old_index_name != st.session_state.index_name:
-        st.session_state.old_index_name = st.session_state.index_name
-        logging.info(f"> replaced old_index_name = {st.session_state.old_index_name}")
-        if st.session_state.index_name != None:
+    logging.info(f"> selected_index = {st.session_state.selected_index.name}")
+    logging.info(f"> old_selected_index = {st.session_state.old_selected_index.name}")
+    if st.session_state.old_selected_index != st.session_state.selected_index:
+        st.session_state.old_selected_index = st.session_state.selected_index
+        logging.info(f"> replaced old_selected_index = {st.session_state.old_selected_index}")
+        if st.session_state.selected_index != None:
             with st.spinner('Loading Index...'):
-                st.session_state.index = load_index(st.session_state.index_name)
-                logging.info(f" ### Loading Index '{st.session_state.index_name}' completed.")
+                st.session_state.index = load_index(st.session_state.selected_index)
+                logging.info(f" ### Loading Index '{st.session_state.selected_index}' completed.")
 
 def clear_history():
     st.session_state.messages = [
@@ -118,6 +125,13 @@ def clear_history():
     if st.session_state.index != None:
         logging.info("> clearing chat context")
         st.session_state.chat_engine.reset()
+
+def index_name_format(value: vector_db_index):
+    if value.engine == 1:
+        return "ChromaDB - "+value.name
+    if value.engine == 2:
+        return "Milvus - "+value.name
+    return "JSON - "+value.name
 
 # Side bar
 with st.sidebar:        
@@ -171,10 +185,10 @@ with st.sidebar:
         col1, col2 = st.columns([5,1])
         saved_index_list = find_saved_indexes()
         with col1:
-            index = next((i for i, item in enumerate(saved_index_list) if item.startswith('_')), None)
-            st.session_state.index_name = st.selectbox("Index", saved_index_list, index)
+            index = next((i for i, item in enumerate(saved_index_list) if item.name.startswith('_')), None)
+            st.session_state.selected_index = st.selectbox("Index", saved_index_list, index, format_func=index_name_format)
             reload_index()
-            logging.info(f"> index_name = {st.session_state.index_name}")
+            logging.info(f"> selected_index = {st.session_state.selected_index}")
         with col2:
             st.markdown('')
             # st.link_button('➕', url='pages/build_index.py')
@@ -190,7 +204,7 @@ with st.sidebar:
             logging.info(f"> Top_K    = {top_k}")
             logging.info(f"> Top_N = {top_n}")
 
-        if st.session_state.index_name != None:
+        if st.session_state.selected_index != None:
             system_prompt = st.text_area("System prompt", SYSTEM_PROMPT, height=240)
             
             context_prompt = st.text_area("Context prompt", CONTEXT_PROMPT, height=240)            
@@ -222,11 +236,11 @@ if "index" not in st.session_state.keys():
 if "messages" not in st.session_state.keys():
     clear_history()
 if "old_index_name" not in st.session_state.keys():
-    st.session_state.old_index_name = ''
+    st.session_state.old_selected_index = ''
 
 def model_res_generator(prompt=""):
     if use_index:
-        if st.session_state.index_name == None:
+        if st.session_state.selected_index == None:
             st.warning('No index selected!', icon="⚠️")
             return            
         logging.info(f">>> RAG enabled:")
