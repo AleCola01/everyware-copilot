@@ -64,7 +64,7 @@ When you access the web UI for the first time, it will dowload the default LLM (
 > [!TIP]
 > If you are on Ubuntu Desktop, a frameless Chromium window will pop up to access the web app, to make it look like an independent application.
 > You need to close the window as stopping the container on the console won't shutdown Chromium.
-> 
+>
 > https://github.com/NVIDIA-AI-IOT/jetson-copilot/assets/25759564/422fc036-890a-4c72-aa90-52cfb656ed57
 
 ## 📖 How to use everyware copilot
@@ -171,7 +171,7 @@ https://github.com/NVIDIA-AI-IOT/jetson-copilot/assets/25759564/7ec4552a-bd55-43
 
 ## 🧱 Directory structure
 
-```
+``` bash
 └── everyware-copilot
     ├── launch_everyware_copilot.sh
     ├── setup_environment.sh
@@ -228,6 +228,8 @@ Pushed to public, still partially in development.
 
 ### TODO
 
+- [ ] Update videos
+- [ ] README revamp
 - [ ] Support OpenAI embedding models
 - [ ] Download and launch NVIDIA Inference Microservices
 - [ ] Implement request queue to fully decouple frontend and backend
