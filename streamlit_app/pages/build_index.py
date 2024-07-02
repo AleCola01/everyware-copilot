@@ -267,8 +267,8 @@ with st.sidebar:
 
     use_customized_chunk = st.toggle("Customize chunk parameters", value=False)
     if use_customized_chunk:
-        Settings.chunk_size = st.slider("Chunk size", 100, 5000, 1024, key='my_chunk_size', on_change=on_settings_change)
-        Settings.chunk_overlap = st.slider("Chunk overlap", 10, 500, 50, key='my_chunk_overlap', on_change=on_settings_change)
+        Settings.chunk_size = st.slider("Chunk size", 100, 5000, 512, key='my_chunk_size', on_change=on_settings_change)
+        Settings.chunk_overlap = st.slider("Chunk overlap", 10, 500, 24, key='my_chunk_overlap', on_change=on_settings_change)
         logging.info(f"> Settings.chunk_size    = {Settings.chunk_size}")
         logging.info(f"> Settings.chunk_overlap = {Settings.chunk_overlap}")
 
