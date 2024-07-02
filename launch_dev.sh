@@ -79,7 +79,7 @@ if [ $ARCH = "aarch64" ]; then
     verions_numbers=(${L4T_VERSION//./ })
 	L4T_VERSION_MAJOR=${verions_numbers[0]}
 
-    # https://hub.docker.com/r/dustynv/jetrag/tags
+    # https://hub.docker.com/r/ldazi/everyware-copilot/tags
 	if [ "$L4T_VERSION_MAJOR" == "35" ]; then
 		log "JetPack 5.x :"
         CONTAINER_TAG="r35.4.1"
@@ -100,16 +100,16 @@ if [ $ARCH = "aarch64" ]; then
             --volume /var/run/dbus:/var/run/dbus \
             --volume /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket \
             --volume /var/run/docker.sock:/var/run/docker.sock \
-            --volume $ROOT/Documents:/opt/jetson_copilot/Documents \
-            --volume $ROOT/Indexes:/opt/jetson_copilot/Indexes \
+            --volume $ROOT/Documents:/opt/everyware_copilot/Documents \
+            --volume $ROOT/Indexes:/opt/everyware_copilot/Indexes \
             --volume $ROOT/logs:/data/logs \
             --volume $ROOT/ollama_models://data/models/ollama/models \
-            --volume $ROOT/streamlit_app:/opt/jetson_copilot/app \
+            --volume $ROOT/streamlit_app:/opt/everyware_copilot/app \
             --device /dev/snd \
             --device /dev/bus/usb \
             $DATA_VOLUME $DISPLAY_DEVICE $V4L2_DEVICES $I2C_DEVICES $JTOP_SOCKET $EXTRA_FLAGS \
-            dustynv/jetrag:$CONTAINER_TAG \
+            ldazi/everyware-copilot:$CONTAINER_TAG \
             bash -c '/start_ollama && \
-                cd /opt/jetson_copilot/app && \
+                cd /opt/everyware_copilot/app && \
                 /bin/bash'
 fi
