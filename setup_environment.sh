@@ -53,8 +53,10 @@ if [ $ARCH = "aarch64" ]; then
 	log "L4T_VERSION:  $L4T_VERSION"
 	
 elif [ $ARCH != "x86_64" ]; then
-	log "unsupported architecture:  $ARCH"
-	exit 1
+    log "working with Ubuntu..."
+else
+   log "unsupported atchitecture: $ARCH"
+   exit 1
 fi
 
 ###^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^###
@@ -137,27 +139,45 @@ if [ "$flag_install_docker" = true ]; then
 		exit 1
 	fi
 
-	# Restart the Docker service and add your user to the docker group
-	sudo systemctl restart docker
-	sudo usermod -aG docker $USER
-	#newgrp docker
+elif [ $ARCH != "x86_64" ]; then
+    log "Installing Docker and setting up ..."
+	
+	sudo apt update
+	sudo apt install -y curl
 
-	# Insert the `default-runtime` line
-	if grep -q "\"default-runtime\": \"nvidia\"" "$DOCKER_DAEMON_CONFIG"; then
-  		log "[INFO] Defulat-runtime nvidia is already added"
-	else
-		log "---- $DOCKER_DAEMON_CONFIG contents (before) ----"
-		cat $DOCKER_DAEMON_CONFIG
-		log "\n-------------------------------------------------"
-		sudo sed 's|^{|{\n    "default-runtime": "nvidia",|' -i /etc/docker/daemon.json
-		log "---- $DOCKER_DAEMON_CONFIG contents (after)  ----"
-		cat $DOCKER_DAEMON_CONFIG
-		log "\n-------------------------------------------------"
-	fi
+	curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  		&& curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    	sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    	sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
-	# Restart Docker
-	sudo systemctl daemon-reload && sudo systemctl restart docker
+	sudo apt update
+	log "Installing nvidia-container package ..."
+	sudo apt install -y nvidia-container-toolkit
+
+	curl https://get.docker.com | sh && sudo systemctl --now enable docker
+	sudo nvidia-ctk runtime configure --runtime=docker
 fi
+
+# Restart the Docker service and add your user to the docker group
+sudo systemctl restart docker
+sudo usermod -aG docker $USER
+#newgrp docker
+
+# Insert the `default-runtime` line
+if grep -q "\"default-runtime\": \"nvidia\"" "$DOCKER_DAEMON_CONFIG"; then
+	log "[INFO] Defulat-runtime nvidia is already added"
+else
+	log "---- $DOCKER_DAEMON_CONFIG contents (before) ----"
+	cat $DOCKER_DAEMON_CONFIG
+	log "\n-------------------------------------------------"
+	sudo sed 's|^{|{\n    "default-runtime": "nvidia",|' -i /etc/docker/daemon.json
+	log "---- $DOCKER_DAEMON_CONFIG contents (after)  ----"
+	cat $DOCKER_DAEMON_CONFIG
+	log "\n-------------------------------------------------"
+fi
+
+# Restart Docker
+sudo systemctl daemon-reload && sudo systemctl restart docker
 
 if id -nG "$USER" | grep -qw docker; then
     log "[INFO] User '$USER' is already in 'docker' group."

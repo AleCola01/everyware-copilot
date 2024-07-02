@@ -23,6 +23,7 @@ ARCH=$(uname -i)
 log "ARCH:  $ARCH"
 
 if [ $ARCH = "aarch64" ]; then
+    log "working with Jetson..."
 	L4T_VERSION_STRING=$(head -n 1 /etc/nv_tegra_release)
 
 	if [ -z "$L4T_VERSION_STRING" ]; then
@@ -51,8 +52,10 @@ if [ $ARCH = "aarch64" ]; then
 	log "L4T_VERSION:  $L4T_VERSION"
 	
 elif [ $ARCH != "x86_64" ]; then
-	log "unsupported architecture:  $ARCH"
-	exit 1
+    log "working with Ubuntu..."
+else
+   log "unsupported atchitecture: $ARCH"
+   exit 1
 fi
 
 ###^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^###
@@ -109,6 +112,21 @@ if [ $ARCH = "aarch64" ]; then
             --device /dev/bus/usb \
             $DATA_VOLUME $DISPLAY_DEVICE $V4L2_DEVICES $I2C_DEVICES $JTOP_SOCKET $EXTRA_FLAGS \
             ldazi/everyware-copilot:$CONTAINER_TAG \
+            bash -c '/start_ollama && cd /opt/everyware_copilot/app/ && streamlit run ./app.py' \
+            | tee  -a ./logs/container.log & pid=$!
+    PID_LIST+=" $pid"
+elif [ $ARCH != "x86_64" ]; then
+    docker run --runtime nvidia -it --rm --network host \
+            --volume /tmp/argus_socket:/tmp/argus_socket \
+            --volume /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume $ROOT/Documents:/opt/everyware_copilot/Documents \
+            --volume $ROOT/Indexes:/opt/everyware_copilot/Indexes \
+            --volume $ROOT/logs:/data/logs \
+            --volume $ROOT/ollama_models://data/models/ollama/models \
+            --volume $ROOT/streamlit_app:/opt/jetsoneveryware_copilot_copilot/app \
+            $DATA_VOLUME $DISPLAY_DEVICE $JTOP_SOCKET $EXTRA_FLAGS \
+            ldazi/everyware-copilot:generic \
             bash -c '/start_ollama && cd /opt/everyware_copilot/app/ && streamlit run ./app.py' \
             | tee  -a ./logs/container.log & pid=$!
     PID_LIST+=" $pid"
