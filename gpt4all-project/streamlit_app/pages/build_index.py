@@ -172,20 +172,13 @@ def index_data():
                     #    max_depth=st.session_state.web_crawling_depth,
                     #)
                     #web_docs=scraper.load()
+                    #web_lang_docs = [doc.to_langchain_format() for doc in web_docs] # to check if works 
                     loader = WebBaseLoader(web_path = url)
                     web_docs = (loader.load())
                     st.write(    f"{len(web_docs)} web documents loaded from {url}.")
                     logging.info(f"{len(web_docs)} web documents loaded from {url}.")
                     logging.info(f"len(web_docs): {len(web_docs)}")
                     all_docs.extend(web_docs)
-
-                #else:
-                    #if st.session_state.vector_db == 0:
-                    #    for d in web_docs:
-                    #        index.add_documents(documents=d)
-                    #else:
-                    #    for d in web_docs:
-                    #        index.upsert(documents=d)
 
             st.write(    "Building Index from web docs (using GPU)...")
             logging.info("Building Index from web docs (using GPU)...")
